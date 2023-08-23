@@ -47,8 +47,7 @@ void loop() {
   current = getNoteByFrequency(peak_fr);
 
   display();
-
-  delay(500);
+  // delay(500);
 
 
 }
@@ -71,9 +70,24 @@ void recordSamples(){
 }
 
 void display(){
+  
+  String out = "";
+  if (current.cent <= -1) out += "<";
+  else out += " ";
+  if (current.cent <= -0.5) out += "<";
+  else out += " ";
+  out += current.letter;
+  out += current.octave;
+  if (current.cent >= 0.5) out += ">";
+  else out += " ";
+  if (current.cent >= 1) out += ">";
+  else out += " ";
+
   u8g.firstPage();
   do
   {
-    
+    u8g.setFont(u8g_font_unifont);
+    u8g.setPrintPos(30, 30);
+    u8g.print(out.c_str());
   } while( u8g.nextPage() );
 }
