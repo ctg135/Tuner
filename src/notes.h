@@ -12,22 +12,12 @@ struct note{
 String notesArray[] = {"A ", "A#", "B ", "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#"};
 
 note getNoteByFrequency(double frequency){
-  int tone = 12 * log(frequency/A440) / log(2);
+  int tone = round(12 * log(frequency/A440) / log(2));
   double noteFreq = A440 * powf(2, double(tone)/double(12));
-  double cents = abs(frequency - noteFreq) * 100 / noteFreq;
-  double note2Freq = A440 * powf(2, double(tone - 1)/double(12));
-  double cents2 = abs(frequency - note2Freq) * 100 / note2Freq;
+  double cents = (frequency-noteFreq)*100/noteFreq;
 
-  if (cents2 < cents){
-    noteFreq = note2Freq;
-    cents = cents2 - 2.0;
-    tone = tone - 1;
-  }
-  else{
-    cents = -cents + 2.0;
-  }
-  if (frequency <= 220) cents /= 2;
-  if (frequency <= 110) cents /= 2;
+  // if (frequency <= 220) cents /= 2;
+  // if (frequency <= 110) cents /= 2;
 
   Serial.print("Tone : ");
   Serial.println(tone);
