@@ -10,41 +10,25 @@ struct note{
 };
 
 String notesArray[] = {"A ", "A#", "B ", "C ", "C#", "D ", "D#", "E ", "F ", "F#", "G ", "G#"};
+int octave;
+double noteFreq, cents;
 
 note getNoteByFrequency(double frequency){
+  // Calculating tone
   int tone = round(12 * log(frequency/A440) / log(2));
-  double noteFreq = A440 * powf(2, double(tone)/double(12));
-  double cents = (frequency-noteFreq)*100/noteFreq;
+  // Calculating frequency of tone
+  noteFreq = A440 * powf(2, tone/12.0);
+  cents = (frequency-noteFreq)*100/noteFreq;
 
-  // if (frequency <= 220) cents /= 2;
-  // if (frequency <= 110) cents /= 2;
-
-  Serial.print("Tone : ");
-  Serial.println(tone);
-
-
-  Serial.print("Ideal: ");
-  Serial.println(noteFreq);
-
-
-  Serial.print("Cents: ");
-  Serial.println(cents);
-
-  int octave = (tone+57)/12;
+  octave = (tone+57)/12;
 
   while(tone >= 12){
     tone -= 12;
-    // octave++;
   }
 
   while(tone < 0){
     tone += 12;
-    // octave--;
   }
-
-  Serial.print("Letter: ");
-  Serial.print(notesArray[tone]);
-  Serial.println(octave);
 
   note detected;
   detected.cent = cents;

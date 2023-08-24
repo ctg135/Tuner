@@ -7,6 +7,7 @@ note current;
  
 #define SAMPLES 128             //SAMPLES-pt FFT. Must be a base 2 number. Max 128 for Arduino Uno.
 #define SAMPLING_FREQUENCY 2048 //Ts = Based on Nyquist, must be 2 times the highest expected frequency.
+#define REPEATS 4
 
 arduinoFFT FFT = arduinoFFT();
 
@@ -28,33 +29,48 @@ void display();
 void setup() {
   Serial.begin(115200); //Baud rate for the Serial Monitor
   samplingPeriod = round(1000000*(1.0/SAMPLING_FREQUENCY)); //Period in microseconds 
-  Serial.println("Starting...");
-  
 }
 
 double sum=0;
 int count=0;
+int count_sample;
+double frequncy_summ, peak_fr;
 
 void loop() {
-  
-  recordSamples();
+  frequncy_summ = 0;
+  for (int count_sample = 0; count_sample < REPEATS; count_sample++){
+    recordSamples();
+    /*Perform FFT on samples*/
+    FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
+    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
 
-  /*Perform FFT on samples*/
-  FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-  FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-  FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
+    /*Find peak frequency and print peak*/
+    peak_fr = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
 
-  /*Find peak frequency and print peak*/
-  double peak_fr = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
-  peak_fr = peak_fr - (peak_fr/100 * 2);
+    frequncy_summ += peak_fr;
+  }
+  peak_fr = frequncy_summ/REPEATS;
+
+  // Filter for frequency
+  // It`s maded for specipfic microphone, that overcharges frequency
+  if (peak_fr > 250) peak_fr = peak_fr*0.98; 
+  else if (peak_fr < 250 && peak_fr > 215) peak_fr = peak_fr*99.65/100;
+  else if (peak_fr < 215 && peak_fr > 210) peak_fr = peak_fr*0.995;
+  else if (peak_fr < 210 && peak_fr > 160) peak_fr = peak_fr*0.985;
+  else if (peak_fr < 160 && peak_fr > 125) peak_fr = peak_fr*0.988;
+  else if (peak_fr < 125 && peak_fr > 105) peak_fr = peak_fr*0.979;
+  else if (peak_fr < 105 && peak_fr > 93) peak_fr = peak_fr*0.99;
+  else if (peak_fr < 93 && peak_fr > 85) peak_fr = peak_fr*0.98;
+  else if (peak_fr < 85 && peak_fr > 80) peak_fr = peak_fr*1000.11/1000;
+  else if (peak_fr < 80 && peak_fr > 65) peak_fr = peak_fr*0.98;
+
+  // Getting note with frequency
+  current = getNoteByFrequency(peak_fr);
   Serial.println(peak_fr);     //Print out the most dominant frequency.
 
-  current = getNoteByFrequency(peak_fr);
-
-  display();
-  // delay(500);
-
-
+  // Display on monitor
+  display(); 
 }
 
 void recordSamples(){
@@ -77,20 +93,8 @@ void recordSamples(){
 void display(){
   
   String out = "";
-  if (current.cent <= -2) out += "<";
-  else out += " ";
-  if (current.cent <= -1) out += "<";
-  else out += " ";
-  if (current.cent <= -0.3) out += "<";
-  else out += " ";
   out += current.letter;
   out += current.octave;
-  if (current.cent >= 0.3) out += ">";
-  else out += " ";
-  if (current.cent >= 1) out += ">";
-  else out += " ";
-  if (current.cent >= 2) out += ">";
-  else out += " ";
 
   int pos = (current.cent / 0.1 + 30) * 2 + 4;
   u8g.firstPage();
