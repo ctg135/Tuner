@@ -8,6 +8,8 @@ note current;
 #define SAMPLES 128             //SAMPLES-pt FFT. Must be a base 2 number. Max 128 for Arduino Uno.
 #define SAMPLING_FREQUENCY 2048 //Ts = Based on Nyquist, must be 2 times the highest expected frequency.
 #define REPEATS 4
+#define BUTTON_FIRST 3
+#define BUTTON_SECOND 5
 
 arduinoFFT FFT = arduinoFFT();
 
@@ -24,54 +26,70 @@ void recordSamples(); //function for recording samples
 
 U8GLIB_SSD1306_128X64 u8g(13, 11, 10, 9, 8);
 
-void display();
+void display();// Function for displayng tuner
+void displayHint(); // Function for displayng hint
 
 void setup() {
   Serial.begin(115200); //Baud rate for the Serial Monitor
   samplingPeriod = round(1000000*(1.0/SAMPLING_FREQUENCY)); //Period in microseconds 
+  pinMode(BUTTON_FIRST, INPUT_PULLUP);
+  pinMode(BUTTON_SECOND, INPUT_PULLUP);
 }
 
 double sum=0;
 int count=0;
-int count_sample;
-double frequncy_summ, peak_fr;
+int count_sample=0;
+double frequncy_summ=0, peak_fr=0;
+bool but_first, but_second;
 
 void loop() {
-  frequncy_summ = 0;
-  for (int count_sample = 0; count_sample < REPEATS; count_sample++){
-    recordSamples();
-    /*Perform FFT on samples*/
-    FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
-    FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
-    FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
 
-    /*Find peak frequency and print peak*/
-    peak_fr = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
+  but_first = !digitalRead(BUTTON_FIRST);
+  but_second = !digitalRead(BUTTON_SECOND);
 
-    frequncy_summ += peak_fr;
+  if (but_first){
+    displayHint();
+    delay(500);
   }
-  peak_fr = frequncy_summ/REPEATS;
+  else{
+    frequncy_summ = 0;
+    for (int count_sample = 0; count_sample < REPEATS; count_sample++){
+      recordSamples();
+      /*Perform FFT on samples*/
+      FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
+      FFT.Compute(vReal, vImag, SAMPLES, FFT_FORWARD);
+      FFT.ComplexToMagnitude(vReal, vImag, SAMPLES);
 
-  // Filter for frequency
-  // It`s maded for specipfic microphone, that overcharges frequency
-  if (peak_fr > 250) peak_fr = peak_fr*0.98; 
-  else if (peak_fr < 250 && peak_fr > 215) peak_fr = peak_fr*99.65/100;
-  else if (peak_fr < 215 && peak_fr > 210) peak_fr = peak_fr*0.995;
-  else if (peak_fr < 210 && peak_fr > 160) peak_fr = peak_fr*0.985;
-  else if (peak_fr < 160 && peak_fr > 125) peak_fr = peak_fr*0.988;
-  else if (peak_fr < 125 && peak_fr > 105) peak_fr = peak_fr*0.979;
-  else if (peak_fr < 105 && peak_fr > 93) peak_fr = peak_fr*0.99;
-  else if (peak_fr < 93 && peak_fr > 85) peak_fr = peak_fr*0.98;
-  else if (peak_fr < 85 && peak_fr > 80) peak_fr = peak_fr*1000.11/1000;
-  else if (peak_fr < 80 && peak_fr > 65) peak_fr = peak_fr*0.98;
+      /*Find peak frequency and print peak*/
+      peak_fr = FFT.MajorPeak(vReal, SAMPLES, SAMPLING_FREQUENCY);
 
-  // Getting note with frequency
-  current = getNoteByFrequency(peak_fr);
-  Serial.println(peak_fr);     //Print out the most dominant frequency.
+      frequncy_summ += peak_fr;
+    }
+    peak_fr = frequncy_summ/REPEATS;
 
-  // Display on monitor
-  display(); 
+    // Filter for frequency
+    // It`s maded for specipfic microphone, that overcharges frequency
+    if (peak_fr > 250) peak_fr = peak_fr*0.98; 
+    else if (peak_fr < 250 && peak_fr > 215) peak_fr = peak_fr*99.65/100;
+    else if (peak_fr < 215 && peak_fr > 210) peak_fr = peak_fr*0.995;
+    else if (peak_fr < 210 && peak_fr > 160) peak_fr = peak_fr*0.985;
+    else if (peak_fr < 160 && peak_fr > 125) peak_fr = peak_fr*0.988;
+    else if (peak_fr < 125 && peak_fr > 105) peak_fr = peak_fr*0.979;
+    else if (peak_fr < 105 && peak_fr > 93) peak_fr = peak_fr*0.99;
+    else if (peak_fr < 93 && peak_fr > 85) peak_fr = peak_fr*0.98;
+    else if (peak_fr < 85 && peak_fr > 80) peak_fr = peak_fr*1000.11/1000;
+    else if (peak_fr < 80 && peak_fr > 65) peak_fr = peak_fr*0.98;
+
+    // Getting note with frequency
+    current = getNoteByFrequency(peak_fr);
+    Serial.println(peak_fr);     //Print out the most dominant frequency.
+
+    // Display on monitor
+    display(); 
+  } 
 }
+
+
 
 void recordSamples(){
   /*Sample SAMPLES times*/
@@ -90,6 +108,7 @@ void recordSamples(){
   }
 }
 
+// Function for display tuner
 void display(){
   
   String out = "";
@@ -109,5 +128,24 @@ void display(){
     u8g.drawLine(64, 31, 64, 34); // Center Line up
     u8g.drawLine(64, 45, 64, 48); // Center Line down
     u8g.drawBox(pos, 36, 2, 8);
+  } while( u8g.nextPage() );
+}
+
+// Function for displayng hint
+void displayHint(){
+  u8g.firstPage();
+  do
+  {
+    u8g.setFont(u8g_font_6x12r);
+    u8g.setPrintPos(1, 12);
+    u8g.print("Classic        EADGBE");
+    u8g.setPrintPos(1, 24);
+    u8g.print("Open G         DGDGBD");
+    u8g.setPrintPos(1, 36);
+    u8g.print("Open G Min    DGDGA#D");
+    u8g.setPrintPos(1, 48);
+    u8g.print("Open D        DADF#AD");
+    u8g.setPrintPos(1, 60);
+    u8g.print("Double Drop D  DADGBD");
   } while( u8g.nextPage() );
 }
