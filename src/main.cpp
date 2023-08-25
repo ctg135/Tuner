@@ -7,7 +7,7 @@ note current;
  
 #define SAMPLES 128             //SAMPLES-pt FFT. Must be a base 2 number. Max 128 for Arduino Uno.
 #define SAMPLING_FREQUENCY 2048 //Ts = Based on Nyquist, must be 2 times the highest expected frequency.
-#define REPEATS 4
+#define REPEATS 1
 #define BUTTON_FIRST 3
 #define BUTTON_SECOND 5
 
@@ -30,30 +30,44 @@ void display();// Function for displayng tuner
 void displayHint(); // Function for displayng hint
 
 void setup() {
-  Serial.begin(115200); //Baud rate for the Serial Monitor
+  // Serial.begin(115200); //Baud rate for the Serial Monitors
   samplingPeriod = round(1000000*(1.0/SAMPLING_FREQUENCY)); //Period in microseconds 
   pinMode(BUTTON_FIRST, INPUT_PULLUP);
   pinMode(BUTTON_SECOND, INPUT_PULLUP);
 }
 
+int repeats=1;
 double sum=0;
 int count=0;
 int count_sample=0;
 double frequncy_summ=0, peak_fr=0;
 bool but_first, but_second;
+bool released_second = true;
+bool display_mode = false;
 
 void loop() {
-
+  // Reading signal from
   but_first = !digitalRead(BUTTON_FIRST);
   but_second = !digitalRead(BUTTON_SECOND);
 
+  // While button 1 pressed, display hint
   if (but_first){
     displayHint();
-    delay(500);
+    delay(100);
+  }
+  // Pressing 2nd button switches to another accuracy mode 
+  else if(but_second){
+    if (released_second) {
+      released_second = false;
+      repeats = repeats == 4 ? 1 : 4;
+    }
   }
   else{
+    // 2nd button released
+    released_second = true;
+
     frequncy_summ = 0;
-    for (int count_sample = 0; count_sample < REPEATS; count_sample++){
+    for (int count_sample = 0; count_sample < repeats; count_sample++){
       recordSamples();
       /*Perform FFT on samples*/
       FFT.Windowing(vReal, SAMPLES, FFT_WIN_TYP_HAMMING, FFT_FORWARD);
@@ -65,7 +79,7 @@ void loop() {
 
       frequncy_summ += peak_fr;
     }
-    peak_fr = frequncy_summ/REPEATS;
+    peak_fr = frequncy_summ/repeats;
 
     // Filter for frequency
     // It`s maded for specipfic microphone, that overcharges frequency
@@ -82,10 +96,10 @@ void loop() {
 
     // Getting note with frequency
     current = getNoteByFrequency(peak_fr);
-    Serial.println(peak_fr);     //Print out the most dominant frequency.
+    // Serial.println(peak_fr);     //Print out the most dominant frequency.
 
-    // Display on monitor
-    display(); 
+    // Display tuner on monitor
+    display();
   } 
 }
 
@@ -110,24 +124,29 @@ void recordSamples(){
 
 // Function for display tuner
 void display(){
-  
   String out = "";
   out += current.letter;
   out += current.octave;
 
-  int pos = (current.cent / 0.1 + 30) * 2 + 4;
+  int pos = (current.cent / 0.1 + 30) * 2 + 2;
   u8g.firstPage();
   do
   {
-    u8g.setFont(u8g_font_unifont);
-    u8g.setPrintPos(30, 28);
+    u8g.setFont(u8g_font_courR24);
+    u8g.setPrintPos(36, 28);
     u8g.print(out.c_str());
-    u8g.drawLine(4, 40, 124, 40); // Main line
-    u8g.drawLine(57, 34, 57, 46); // Left border
-    u8g.drawLine(71, 34, 71, 46); // Right border
-    u8g.drawLine(64, 31, 64, 34); // Center Line up
-    u8g.drawLine(64, 45, 64, 48); // Center Line down
-    u8g.drawBox(pos, 36, 2, 8);
+    u8g.drawLine(4, 45, 124, 45); // Main line
+    u8g.drawLine(56, 39, 56, 51); // Left border
+    u8g.drawLine(72, 39, 72, 51); // Right border
+    // u8g.drawLine(64, 31, 64, 34); // Center Line up
+    u8g.drawLine(64, 45, 64, 64); // Center Line down
+    u8g.setFont(u8g_font_fur11);
+    u8g.setPrintPos(4, 35);
+    u8g.print("b");
+    u8g.setFont(u8g_font_courB10);
+    u8g.setPrintPos(114, 35);
+    u8g.print("#");
+    u8g.drawBox(pos, 41, 4, 8);
   } while( u8g.nextPage() );
 }
 
